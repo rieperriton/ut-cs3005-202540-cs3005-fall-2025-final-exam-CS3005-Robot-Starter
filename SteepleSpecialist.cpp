@@ -198,8 +198,8 @@ extern "C" RobotBase* create_robot()
     return new SteepleSpecialist();
 }
 
-extern "C" const char* robot_summary(); {
-    return "This robot has a cornered puppy approach"
-
+extern "C" const char* robot_summary() {
+    return "This robot has a cornered puppy approach";
 }
+
 
