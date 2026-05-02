@@ -2,6 +2,8 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <algorithm>
+#include <cstdlib>
 
 
 //overload the << operator to print the weapon type - handy.
@@ -21,7 +23,7 @@ std::ostream& operator<<(std::ostream& os, const WeaponType& weapon)
 
 // Constructor - Notice that you can't set move speed more than 5
 RobotBase::RobotBase(int move_in, int armor_in, WeaponType weapon_in)
-    : m_health(100), m_weapon(weapon_in), m_name("Blank_Robot")
+    : m_health(100), m_weapon(weapon_in), m_name("SteepleSpecialist")
 {
     //set the number of starting grenades
     m_grenades = 0;
@@ -159,7 +161,7 @@ std::string RobotBase::print_stats() const {
 
     // Construct the robot's statistics as a string
     std::ostringstream stats;
-    stats << m_name << ": ";
+    stats << m_name << ": Steeple Stealth Striker ";
     stats << "  H: " << m_health;
     stats << "  W: " << m_weapon;
     stats << "  A: " << m_armor;
