@@ -9,6 +9,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <thread>
+#include <chrono>
 
 namespace fs = std::filesystem;
 
@@ -122,19 +124,25 @@ public:
 
     void run()
     {
-        print_arena_header();
-        print_board();
-
         int round = 1;
         while (round <= kMaxRounds && alive_robot_count() > 1)
         {
-            std::cout << "\n=== Round " << round << " ===\n";
+            m_round_log.str("");
+            m_round_log.clear();
             execute_round(round);
+
+            std::system("clear");
+            std::cout << "=== Round " << round << " ===\n";
             print_board();
             print_stats();
+            std::cout << "\n-- Round Log --\n" << m_round_log.str();
+            std::this_thread::sleep_for(std::chrono::milliseconds(800));
             ++round;
         }
 
+        std::system("clear");
+        print_board();
+        print_stats();
         announce_winner();
     }
 
@@ -152,6 +160,7 @@ public:
 private:
     std::vector<std::string> m_board;
     std::vector<ArenaRobot> m_robots;
+    std::ostringstream m_round_log;
 
     void build_static_map()
     {
@@ -337,27 +346,27 @@ private:
 
             int current_row = robot_entry.row;
             int current_col = robot_entry.col;
-            std::cout << "\n[" << robot_entry.marker << "] " << robot_entry.name
-                      << " begins turn at (" << current_row << "," << current_col << ")\n";
+            m_round_log << "\n[" << robot_entry.marker << "] " << robot_entry.name
+                        << " begins turn at (" << current_row << "," << current_col << ")\n";
 
             int radar_direction = 0;
             robot_entry.robot->get_radar_direction(radar_direction);
             if (radar_direction < 1 || radar_direction > 8)
             {
-                std::cout << "  Invalid radar direction " << radar_direction << ", using 1 instead.\n";
+                m_round_log << "  Invalid radar direction " << radar_direction << ", using 1 instead.\n";
                 radar_direction = 1;
             }
-            std::cout << "  Radar direction: " << radar_direction << "\n";
+            m_round_log << "  Radar direction: " << radar_direction << "\n";
 
             std::vector<RadarObj> radar_results = scan_radar(robot_entry, radar_direction);
             if (radar_results.empty())
-                std::cout << "  Radar scanned nothing.\n";
+                m_round_log << "  Radar scanned nothing.\n";
             else
             {
-                std::cout << "  Radar detected:";
+                m_round_log << "  Radar detected:";
                 for (auto const& obj : radar_results)
-                    std::cout << " " << obj.m_type << "(" << obj.m_row << "," << obj.m_col << ")";
-                std::cout << "\n";
+                    m_round_log << " " << obj.m_type << "(" << obj.m_row << "," << obj.m_col << ")";
+                m_round_log << "\n";
             }
 
             robot_entry.robot->process_radar_results(radar_results);
@@ -366,12 +375,12 @@ private:
             int shot_col = 0;
             if (robot_entry.robot->get_shot_location(shot_row, shot_col))
             {
-                std::cout << "  Shooting at (" << shot_row << "," << shot_col << ")\n";
+                m_round_log << "  Shooting at (" << shot_row << "," << shot_col << ")\n";
                 resolve_shot(robot_entry, shot_row, shot_col);
             }
             else
             {
-                std::cout << "  No shot fired.\n";
+                m_round_log << "  No shot fired.\n";
             }
 
             int move_direction = 0;
@@ -379,12 +388,12 @@ private:
             robot_entry.robot->get_move_direction(move_direction, move_distance);
             if (move_direction < 1 || move_direction > 8 || move_distance <= 0)
             {
-                std::cout << "  No movement chosen.\n";
+                m_round_log << "  No movement chosen.\n";
             }
             else
             {
-                std::cout << "  Wants to move direction " << move_direction
-                          << " distance " << move_distance << "\n";
+                m_round_log << "  Wants to move direction " << move_direction
+                            << " distance " << move_distance << "\n";
                 resolve_movement(robot_entry, move_direction, move_distance);
             }
 
@@ -440,20 +449,20 @@ private:
     {
         if (!in_bounds(shot_row, shot_col))
         {
-            std::cout << "  Shot location is out of bounds and misses.\n";
+            m_round_log << "  Shot location is out of bounds and misses.\n";
             return;
         }
 
         ArenaRobot* target = robot_at_position(shot_row, shot_col);
         if (!target || !target->alive)
         {
-            std::cout << "  No living robot at target location; shot misses.\n";
+            m_round_log << "  No living robot at target location; shot misses.\n";
             return;
         }
 
         if (target == &shooter)
         {
-            std::cout << "  Robot attempted to shoot itself; shot ignored.\n";
+            m_round_log << "  Robot attempted to shoot itself; shot ignored.\n";
             return;
         }
 
@@ -464,19 +473,19 @@ private:
         int health_damage = std::max(0, damage - armor_absorb);
         target->robot->take_damage(health_damage);
 
-        std::cout << "  Hit " << target->name << " for " << health_damage
-                  << " damage, armor absorbed " << armor_absorb << ".\n";
+        m_round_log << "  Hit " << target->name << " for " << health_damage
+                    << " damage, armor absorbed " << armor_absorb << ".\n";
 
         if (shooter.robot->get_weapon() == grenade)
         {
             shooter.robot->decrement_grenades();
-            std::cout << "  " << shooter.name << " now has " << shooter.robot->get_grenades() << " grenades.\n";
+            m_round_log << "  " << shooter.name << " now has " << shooter.robot->get_grenades() << " grenades.\n";
         }
 
         if (target->robot->get_health() == 0)
         {
             target->alive = false;
-            std::cout << "  " << target->name << " has been destroyed!\n";
+            m_round_log << "  " << target->name << " has been destroyed!\n";
         }
     }
 
@@ -487,7 +496,7 @@ private:
 
         if (robot_entry.robot->get_move_speed() == 0)
         {
-            std::cout << "  Movement disabled by pit or zero move speed.\n";
+            m_round_log << "  Movement disabled by pit or zero move speed.\n";
             return;
         }
 
@@ -505,19 +514,19 @@ private:
             int next_col = target_col + dc;
             if (!in_bounds(next_row, next_col))
             {
-                std::cout << "  Movement stops at boundary.\n";
+                m_round_log << "  Movement stops at boundary.\n";
                 break;
             }
             char tile = m_board[next_row][next_col];
             if (tile == 'M')
             {
-                std::cout << "  Movement blocked by mound at (" << next_row << "," << next_col << ").\n";
+                m_round_log << "  Movement blocked by mound at (" << next_row << "," << next_col << ").\n";
                 break;
             }
             ArenaRobot* occupant = robot_at_position(next_row, next_col);
             if (occupant && occupant->alive)
             {
-                std::cout << "  Movement blocked by " << occupant->name << " at (" << next_row << "," << next_col << ").\n";
+                m_round_log << "  Movement blocked by " << occupant->name << " at (" << next_row << "," << next_col << ").\n";
                 break;
             }
 
@@ -527,20 +536,20 @@ private:
 
         if (target_row == robot_entry.row && target_col == robot_entry.col)
         {
-            std::cout << "  Robot remains at its current location.\n";
+            m_round_log << "  Robot remains at its current location.\n";
             return;
         }
 
         robot_entry.robot->move_to(target_row, target_col);
         robot_entry.row = target_row;
         robot_entry.col = target_col;
-        std::cout << "  Moved to (" << target_row << "," << target_col << ").\n";
+        m_round_log << "  Moved to (" << target_row << "," << target_col << ").\n";
 
         char tile = m_board[target_row][target_col];
         if (tile == 'P')
         {
             robot_entry.robot->disable_movement();
-            std::cout << "  Entered a pit; movement disabled for the rest of the game.\n";
+            m_round_log << "  Entered a pit; movement disabled for the rest of the game.\n";
         }
         else if (tile == 'F')
         {
@@ -550,12 +559,12 @@ private:
             robot_entry.robot->reduce_armor(armor_absorb);
             int health_damage = std::max(0, damage - armor_absorb);
             robot_entry.robot->take_damage(health_damage);
-            std::cout << "  Stepped on flamethrower; took " << health_damage
-                      << " damage and " << armor_absorb << " armor absorption.\n";
+            m_round_log << "  Stepped on flamethrower; took " << health_damage
+                        << " damage and " << armor_absorb << " armor absorption.\n";
             if (robot_entry.robot->get_health() == 0)
             {
                 robot_entry.alive = false;
-                std::cout << "  " << robot_entry.name << " has been destroyed by the obstacle!\n";
+                m_round_log << "  " << robot_entry.name << " has been destroyed by the obstacle!\n";
             }
         }
     }
